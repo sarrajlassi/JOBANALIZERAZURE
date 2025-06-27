@@ -22,7 +22,7 @@ GITHUB_REPO="sarrajlassi/JOBANALIZERAZURE"
 BRANCH_NAME="main" # Ou "master", ou la branche que vous utilisez pour le déploiement.
 
 # 2. Chemin d'installation de l'application sur la VM
-APP_DIR="/home/azureuser/JobAnalizer" # Répertoire où l'application sera clonée et installée.
+APP_DIR="/home/azureuser/JOBANALIZERAZURE" # Répertoire où l'application sera clonée et installée.
 
 # 3. Noms de fichiers et modules Flask
 FLASK_APP_FILE="app.py"    # Nom de votre fichier Flask principal (ex: app.py).
