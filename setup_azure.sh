@@ -165,25 +165,42 @@ echo "Ollama installé et modèle tenté de télécharger."
 
 # --- 5. Configuration des variables d'environnement (.env) ---
 echo "--- Étape 5: Configuration des variables d'environnement (.env) ---"
-# *** MODIFICATION ICI : Copie le .env directement si vous n'utilisez pas .env.example ***
-echo "Tentative de copier le fichier .env du dépôt vers $APP_DIR/.env..."
-sudo -u azureuser cp "$APP_DIR/.env" "$APP_DIR/.env"
-if [ $? -ne 0 ]; then
-    echo "ERREUR: Impossible de copier .env vers .env. Vérifiez que '$APP_DIR/.env' existe et est accessible par azureuser."
+# *** MODIFICATION ICI : Vérifie et assure les permissions du .env existant ***
+if [ -f "$APP_DIR/.env" ]; then
+    echo "Le fichier .env existe déjà dans le dépôt cloné. Vérification et correction des permissions..."
+    sudo chown azureuser:azureuser "$APP_DIR/.env"
+    sudo chmod 644 "$APP_DIR/.env" # Lecture/Écriture pour l'utilisateur, Lecture seule pour le groupe/autres
+    if [ $? -ne 0 ]; then
+        echo "AVERTISSEMENT: Échec de la correction des permissions pour '$APP_DIR/.env'."
+    fi
+    echo "Fichier .env prêt."
+else
+    echo "ERREUR: Le fichier '$APP_DIR/.env' est introuvable dans le dépôt cloné."
+    echo "Veuillez vous assurer que le fichier '.env' est bien présent à la racine de votre dépôt GitHub."
     echo "Note: La pratique recommandée est d'utiliser un fichier '.env.example' et de ne pas commiter le '.env' directement sur GitHub."
-    exit 1
+    exit 1 # Exit car le .env est critique pour l'application
 fi
-echo ".env copié depuis le dépôt."
+
 
 # Injecter les clés API si elles sont définies dans ce script (moins sécurisé mais direct)
 # Utiliser sudo -u azureuser pour s'assurer que les écritures sont faites avec les bonnes permissions
+# Note: Si le .env est déjà complet dans le dépôt, ces ajouts peuvent être redondants.
 if [ -n "$OPENAI_API_KEY" ]; then
-    sudo -u azureuser bash -c "echo \"OPENAI_API_KEY=$OPENAI_API_KEY\" >> \"$APP_DIR/.env\""
-    echo "Clé OpenAI injectée dans .env."
+    # Utiliser grep pour vérifier si la ligne existe déjà avant d'ajouter
+    if ! sudo -u azureuser grep -q "^OPENAI_API_KEY=" "$APP_DIR/.env"; then
+        sudo -u azureuser bash -c "echo \"OPENAI_API_KEY=$OPENAI_API_KEY\" >> \"$APP_DIR/.env\""
+        echo "Clé OpenAI ajoutée/mise à jour dans .env."
+    else
+        echo "Clé OpenAI déjà présente dans .env, non modifiée par le script."
+    fi
 fi
 if [ -n "$DEEPSEEK_API_KEY" ]; then
-    sudo -u azureuser bash -c "echo \"DEEPSEEK_API_KEY=$DEEPSEEK_API_KEY\" >> \"$APP_DIR/.env\""
-    echo "Clé DeepSeek injectée dans .env."
+    if ! sudo -u azureuser grep -q "^DEEPSEEK_API_KEY=" "$APP_DIR/.env"; then
+        sudo -u azureuser bash -c "echo \"DEEPSEEK_API_KEY=$DEEPSEEK_API_KEY\" >> \"$APP_DIR/.env\""
+        echo "Clé DeepSeek ajoutée/mise à jour dans .env."
+    else
+        echo "Clé DeepSeek déjà présente dans .env, non modifiée par le script."
+    fi
 fi
 
 
