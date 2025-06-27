@@ -18,11 +18,11 @@ echo "Date et heure de début : $(date)"
 # 1. Informations sur votre dépôt Git
 #    Remplacez par votre nom d'utilisateur GitHub / organisation et le nom de votre dépôt.
 #    Exemple : GITHUB_REPO="monutilisateur/job-analyzer-app"
-GITHUB_REPO="sarrajlassi/JOBANALIZERAZURE" 
+GITHUB_REPO="sarrajlassi/JOBANALIZERAZURE" # <--- CONFIRMÉ ET CORRIGÉ !
 BRANCH_NAME="main" # Ou "master", ou la branche que vous utilisez pour le déploiement.
 
 # 2. Chemin d'installation de l'application sur la VM
-APP_DIR="/home/azureuser/JOBANALIZERAZURE" # Répertoire où l'application sera clonée et installée.
+APP_DIR="/home/azureuser/JOBANALIZERAZURE" # <--- CONFIRMÉ ET CORRIGÉ !
 
 # 3. Noms de fichiers et modules Flask
 FLASK_APP_FILE="app.py"    # Nom de votre fichier Flask principal (ex: app.py).
@@ -75,18 +75,42 @@ echo "Prérequis système installés."
 
 # --- 2. Clonage du dépôt Git ---
 echo "--- Étape 2: Clonage du dépôt Git ---"
-# Supprimer le répertoire s'il existe déjà pour une installation propre (utile si relancé pour mise à jour)
+# Nettoyer les anciens dossiers pour un déploiement propre
+echo "Nettoyage des anciens répertoires d'application..."
+sudo rm -rf "/home/azureuser/job-analyzer-app"
+sudo rm -rf "/home/azureuser/JobAnalizer"
 if [ -d "$APP_DIR" ]; then
-    echo "Répertoire d'application existant. Suppression de $APP_DIR..."
+    echo "Répertoire d'application existant ($APP_DIR). Suppression..."
     sudo rm -rf "$APP_DIR"
 fi
 
+# Pour un dépôt privé, l'URL doit inclure le PAT :
+# git clone "https://oauth2:ghp_YOUR_SUPER_SECRET_PAT_HERE@github.com/$GITHUB_REPO.git" "$APP_DIR"
+# Remplacez 'ghp_YOUR_SUPER_SECRET_PAT_HERE' par votre jeton réel.
+# Si le dépôt est public, la ligne ci-dessous est suffisante :
 echo "Clonage de https://github.com/$GITHUB_REPO.git vers $APP_DIR..."
-git clone "https://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@github.com/$GITHUB_REPO.git" "$APP_DIR"
+# Exécutez git clone sans sudo car l'utilisateur azureuser a les droits sur /home/azureuser.
+# Cela peut aider à éviter que le dossier ne soit root:root par défaut si Run Command le permet.
+# Si ça crée quand même root:root, le chown juste après résoudra.
+git clone "https://github.com/$GITHUB_REPO.git" "$APP_DIR" # Utiliser la forme sans sudo si possible
+# Ou si votre dépôt est privé:
+# git clone "https://oauth2:VOTRE_PAT_GITHUB_ICI@github.com/$GITHUB_REPO.git" "$APP_DIR"
+
+
 if [ $? -ne 0 ]; then
-    echo "ERREUR: Échec du clonage du dépôt Git. Vérifiez 'GITHUB_REPO' et la connectivité."
+    echo "ERREUR: Échec du clonage du dépôt Git. Vérifiez 'GITHUB_REPO' et la connectivité. (Si dépôt privé, utilisez PAT dans l'URL)."
     exit 1
 fi
+
+# ==============================================================================
+# NOUVEAU : Corriger la propriété du dossier cloné !
+echo "Correction de la propriété du répertoire '$APP_DIR' vers azureuser:azureuser..."
+sudo chown -R azureuser:azureuser "$APP_DIR"
+if [ $? -ne 0 ]; then
+    echo "ERREUR: Échec du changement de propriété du répertoire d'application. Permissions problématiques."
+    exit 1
+fi
+# ==============================================================================
 
 cd "$APP_DIR"
 git checkout $BRANCH_NAME
@@ -101,22 +125,21 @@ echo "--- Étape 3: Configuration de l'environnement Python ---"
 PYTHON_ENV_DIR="$APP_DIR/venv" # Chemin complet de l'environnement virtuel
 
 echo "Création de l'environnement virtuel Python dans $PYTHON_ENV_DIR..."
-python3 -m venv "$PYTHON_ENV_DIR"
+# Utilisation de sudo -u azureuser pour s'assurer que venv est créé avec les bonnes permissions
+sudo -u azureuser python3 -m venv "$PYTHON_ENV_DIR"
 if [ $? -ne 0 ]; then
     echo "ERREUR: Échec de la création de l'environnement virtuel Python."
     exit 1
 fi
 
 echo "Activation de l'environnement virtuel et installation des dépendances..."
-source "$PYTHON_ENV_DIR/bin/activate" # Active l'environnement virtuel
-pip install --upgrade pip
-pip install -r requirements.txt
+# Utilisation de sudo -u azureuser pour exécuter pip install sous l'utilisateur azureuser
+sudo -u azureuser bash -c "source \"$PYTHON_ENV_DIR/bin/activate\" && pip install --upgrade pip && pip install -r requirements.txt"
 if [ $? -ne 0 ]; then
-    echo "ERREUR: Échec de l'installation des dépendances Python. Vérifiez 'requirements.txt'."
-    deactivate # S'assurer de désactiver en cas d'erreur
+    echo "ERREUR: Échec de l'installation des dépendances Python. Vérifiez 'requirements.txt' ou la connectivité."
+    # Pas besoin de deactivate car c'est dans un sous-shell
     exit 1
 fi
-deactivate # Désactiver temporairement l'environnement virtuel après l'installation
 echo "Dépendances Python installées."
 
 
@@ -137,12 +160,16 @@ if [ $? -ne 0 ]; then
     echo "AVERTISSEMENT: Le service Ollama n'est pas actif. Veuillez vérifier manuellement plus tard."
 fi
 
+echo "Tentative de définition de \$HOME pour Ollama..."
+export HOME="/home/azureuser" # <--- CORRECTION POUR OLLAMA
+
 echo "Téléchargement du modèle Ollama par défaut ($DEFAULT_OLLAMA_MODEL)..."
 # Exécuter la commande ollama en s'assurant qu'elle utilise le bon chemin ou l'environnement de l'utilisateur.
 # L'installation d'Ollama le met dans le PATH de l'utilisateur par défaut (azureuser).
-ollama pull "$DEFAULT_OLLAMA_MODEL"
+# Utilisation de sudo -u azureuser pour le pull afin de s'assurer des permissions
+sudo -u azureuser ollama pull "$DEFAULT_OLLAMA_MODEL"
 if [ $? -ne 0 ]; then
-    echo "AVERTISSEMENT: Échec du téléchargement du modèle Ollama '$DEFAULT_OLLAMA_MODEL'. Vérifiez le nom du modèle ou la connectivité."
+    echo "AVERTISSEMENT: Échec du téléchargement du modèle Ollama '$DEFAULT_OLLAMA_MODEL'. Vérifiez le nom du modèle ou la connectivité. (L'erreur 'panic: $HOME is not defined' suggère un problème d'environnement.)"
 fi
 echo "Ollama installé et modèle tenté de télécharger."
 
@@ -150,22 +177,24 @@ echo "Ollama installé et modèle tenté de télécharger."
 # --- 5. Configuration des variables d'environnement (.env) ---
 echo "--- Étape 5: Configuration des variables d'environnement (.env) ---"
 # Copier le fichier .env.example pour créer .env
-cp "$APP_DIR/.env.example" "$APP_DIR/.env"
+# Exécuter avec sudo -u azureuser pour s'assurer que .env est créé avec les bonnes permissions
+sudo -u azureuser cp "$APP_DIR/.env.example" "$APP_DIR/.env"
+if [ $? -ne 0 ]; then
+    echo "ERREUR: Impossible de copier .env.example vers .env. Vérifiez que '$APP_DIR/.env.example' existe et est accessible par azureuser."
+    exit 1
+fi
 echo ".env créé à partir de .env.example."
 
 # Injecter les clés API si elles sont définies dans ce script (moins sécurisé mais direct)
+# Utiliser sudo -u azureuser pour s'assurer que les écritures sont faites avec les bonnes permissions
 if [ -n "$OPENAI_API_KEY" ]; then
-    echo "OPENAI_API_KEY=$OPENAI_API_KEY" >> "$APP_DIR/.env"
+    sudo -u azureuser bash -c "echo \"OPENAI_API_KEY=$OPENAI_API_KEY\" >> \"$APP_DIR/.env\""
     echo "Clé OpenAI injectée dans .env."
 fi
 if [ -n "$DEEPSEEK_API_KEY" ]; then
-    echo "DEEPSEEK_API_KEY=$DEEPSEEK_API_KEY" >> "$APP_DIR/.env"
+    sudo -u azureuser bash -c "echo \"DEEPSEEK_API_KEY=$DEEPSEEK_API_KEY\" >> \"$APP_DIR/.env\""
     echo "Clé DeepSeek injectée dans .env."
 fi
-
-# Pour rappel, le script d'init de Systemd (étape 6) définira aussi certaines ENV.
-# La variable OLLAMA_BASE_URL est construite dans le code Python, pas besoin de la mettre dans .env ici,
-# sauf si vous voulez la surcharger via .env spécifiquement.
 
 
 # --- 6. Configuration de Gunicorn avec Systemd ---
@@ -208,6 +237,9 @@ echo "Service Gunicorn '${SERVICE_NAME}' créé, activé et démarré."
 echo "--- Étape 7: Configuration de Nginx (Reverse Proxy) ---"
 NGINX_CONF_FILE="/etc/nginx/sites-available/job_analyzer_nginx.conf"
 
+# Supprimer l'ancien lien symbolique si existant (pour éviter "File exists")
+sudo rm -f /etc/nginx/sites-enabled/job_analyzer_nginx.conf
+
 # Créer le fichier de configuration Nginx
 sudo bash -c "cat > ${NGINX_CONF_FILE}" <<EOL
 server {
@@ -236,7 +268,7 @@ EOL
 sudo rm -f /etc/nginx/sites-enabled/default
 sudo ln -s "$NGINX_CONF_FILE" /etc/nginx/sites-enabled/
 if [ $? -ne 0 ]; then
-    echo "AVERTISSEMENT: Échec de la création du lien symbolique pour la configuration Nginx."
+    echo "AVERTISSEMENT: Échec de la création du lien symbolique pour la configuration Nginx. Cela peut se produire si le lien existe déjà."
 fi
 
 echo "Vérification de la syntaxe de la configuration Nginx..."
