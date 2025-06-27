@@ -22,7 +22,7 @@ GITHUB_REPO="sarrajlassi/JOBANALIZERAZURE"
 BRANCH_NAME="main" # Ou "master", ou la branche que vous utilisez pour le déploiement.
 
 # 2. Chemin d'installation de l'application sur la VM
-APP_DIR="/home/azureuser/job-analyzer-app" # Répertoire où l'application sera clonée et installée.
+APP_DIR="/home/azureuser/JobAnalizer" # Répertoire où l'application sera clonée et installée.
 
 # 3. Noms de fichiers et modules Flask
 FLASK_APP_FILE="app.py"    # Nom de votre fichier Flask principal (ex: app.py).
@@ -82,7 +82,7 @@ if [ -d "$APP_DIR" ]; then
 fi
 
 echo "Clonage de https://github.com/$GITHUB_REPO.git vers $APP_DIR..."
-git clone "https://github.com/$GITHUB_REPO.git" "$APP_DIR"
+git clone "https://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@github.com/$GITHUB_REPO.git" "$APP_DIR"
 if [ $? -ne 0 ]; then
     echo "ERREUR: Échec du clonage du dépôt Git. Vérifiez 'GITHUB_REPO' et la connectivité."
     exit 1
