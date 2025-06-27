@@ -75,7 +75,7 @@ echo "Prérequis système installés."
 
 # --- 2. Clonage du dépôt Git ---
 echo "--- Étape 2: Clonage du dépôt Git ---"
-# Nettoyer les anciens dossiers pour un déploiement propre
+# Nettoyage des anciens dossiers pour un déploiement propre
 echo "Nettoyage des anciens répertoires d'application..."
 sudo rm -rf "/home/azureuser/job-analyzer-app"
 sudo rm -rf "/home/azureuser/JobAnalizer"
@@ -89,10 +89,7 @@ fi
 # Remplacez 'ghp_YOUR_SUPER_SECRET_PAT_HERE' par votre jeton réel.
 # Si le dépôt est public, la ligne ci-dessous est suffisante :
 echo "Clonage de https://github.com/$GITHUB_REPO.git vers $APP_DIR..."
-# Exécutez git clone sans sudo car l'utilisateur azureuser a les droits sur /home/azureuser.
-# Cela peut aider à éviter que le dossier ne soit root:root par défaut si Run Command le permet.
-# Si ça crée quand même root:root, le chown juste après résoudra.
-git clone "https://github.com/$GITHUB_REPO.git" "$APP_DIR" # Utiliser la forme sans sudo si possible
+git clone "https://github.com/$GITHUB_REPO.git" "$APP_DIR"
 # Ou si votre dépôt est privé:
 # git clone "https://oauth2:VOTRE_PAT_GITHUB_ICI@github.com/$GITHUB_REPO.git" "$APP_DIR"
 
@@ -102,15 +99,13 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-# ==============================================================================
-# NOUVEAU : Corriger la propriété du dossier cloné !
+# Correction de la propriété du dossier cloné !
 echo "Correction de la propriété du répertoire '$APP_DIR' vers azureuser:azureuser..."
 sudo chown -R azureuser:azureuser "$APP_DIR"
 if [ $? -ne 0 ]; then
     echo "ERREUR: Échec du changement de propriété du répertoire d'application. Permissions problématiques."
     exit 1
 fi
-# ==============================================================================
 
 cd "$APP_DIR"
 git checkout $BRANCH_NAME
@@ -125,7 +120,6 @@ echo "--- Étape 3: Configuration de l'environnement Python ---"
 PYTHON_ENV_DIR="$APP_DIR/venv" # Chemin complet de l'environnement virtuel
 
 echo "Création de l'environnement virtuel Python dans $PYTHON_ENV_DIR..."
-# Utilisation de sudo -u azureuser pour s'assurer que venv est créé avec les bonnes permissions
 sudo -u azureuser python3 -m venv "$PYTHON_ENV_DIR"
 if [ $? -ne 0 ]; then
     echo "ERREUR: Échec de la création de l'environnement virtuel Python."
@@ -133,11 +127,9 @@ if [ $? -ne 0 ]; then
 fi
 
 echo "Activation de l'environnement virtuel et installation des dépendances..."
-# Utilisation de sudo -u azureuser pour exécuter pip install sous l'utilisateur azureuser
 sudo -u azureuser bash -c "source \"$PYTHON_ENV_DIR/bin/activate\" && pip install --upgrade pip && pip install -r requirements.txt"
 if [ $? -ne 0 ]; then
     echo "ERREUR: Échec de l'installation des dépendances Python. Vérifiez 'requirements.txt' ou la connectivité."
-    # Pas besoin de deactivate car c'est dans un sous-shell
     exit 1
 fi
 echo "Dépendances Python installées."
@@ -164,9 +156,6 @@ echo "Tentative de définition de \$HOME pour Ollama..."
 export HOME="/home/azureuser" # <--- CORRECTION POUR OLLAMA
 
 echo "Téléchargement du modèle Ollama par défaut ($DEFAULT_OLLAMA_MODEL)..."
-# Exécuter la commande ollama en s'assurant qu'elle utilise le bon chemin ou l'environnement de l'utilisateur.
-# L'installation d'Ollama le met dans le PATH de l'utilisateur par défaut (azureuser).
-# Utilisation de sudo -u azureuser pour le pull afin de s'assurer des permissions
 sudo -u azureuser ollama pull "$DEFAULT_OLLAMA_MODEL"
 if [ $? -ne 0 ]; then
     echo "AVERTISSEMENT: Échec du téléchargement du modèle Ollama '$DEFAULT_OLLAMA_MODEL'. Vérifiez le nom du modèle ou la connectivité. (L'erreur 'panic: $HOME is not defined' suggère un problème d'environnement.)"
@@ -176,14 +165,15 @@ echo "Ollama installé et modèle tenté de télécharger."
 
 # --- 5. Configuration des variables d'environnement (.env) ---
 echo "--- Étape 5: Configuration des variables d'environnement (.env) ---"
-# Copier le fichier .env.example pour créer .env
-# Exécuter avec sudo -u azureuser pour s'assurer que .env est créé avec les bonnes permissions
-sudo -u azureuser cp "$APP_DIR/.env.example" "$APP_DIR/.env"
+# *** MODIFICATION ICI : Copie le .env directement si vous n'utilisez pas .env.example ***
+echo "Tentative de copier le fichier .env du dépôt vers $APP_DIR/.env..."
+sudo -u azureuser cp "$APP_DIR/.env" "$APP_DIR/.env"
 if [ $? -ne 0 ]; then
-    echo "ERREUR: Impossible de copier .env.example vers .env. Vérifiez que '$APP_DIR/.env.example' existe et est accessible par azureuser."
+    echo "ERREUR: Impossible de copier .env vers .env. Vérifiez que '$APP_DIR/.env' existe et est accessible par azureuser."
+    echo "Note: La pratique recommandée est d'utiliser un fichier '.env.example' et de ne pas commiter le '.env' directement sur GitHub."
     exit 1
 fi
-echo ".env créé à partir de .env.example."
+echo ".env copié depuis le dépôt."
 
 # Injecter les clés API si elles sont définies dans ce script (moins sécurisé mais direct)
 # Utiliser sudo -u azureuser pour s'assurer que les écritures sont faites avec les bonnes permissions
