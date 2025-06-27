@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Job Posting Information Extractor</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <!-- Prism.js for syntax highlighting -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/line-numbers/prism-line-numbers.min.css" rel="stylesheet" />
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+		    <h1>🚀 DXC Job posting Analyzer with AI</h1>
+            <p>Extract structured information from job postings using AI</p>
+        </div>
+        
+        <div class="content">
+            <!-- Backend Status -->
+            <div id="backendStatus" class="backend-status online">
+                ✅ Backend connected and ready
+            </div>
+            
+            <div class="settings">
+                <h3>🤖 AI Provider Configuration</h3>
+                
+                <div class="form-group">
+                    <label>Select AI Provider:</label>
+                    <div class="provider-selector">
+                        <div class="provider-option">
+                            <input type="radio" id="ollama" name="provider" value="ollama" class="provider-radio" checked onchange="switchProvider()">
+                            <label for="ollama" class="provider-label">🦙 Ollama</label>
+                        </div>
+                        <div class="provider-option">
+                            <input type="radio" id="openai" name="provider" value="openai" class="provider-radio" onchange="switchProvider()">
+                            <label for="openai" class="provider-label">🤖 OpenAI</label>
+                        </div>
+                        <div class="provider-option">
+                            <input type="radio" id="deepseek" name="provider" value="deepseek" class="provider-radio" onchange="switchProvider()">
+                            <label for="deepseek" class="provider-label">🧠 DeepSeek</label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Ollama Configuration -->
+                <div id="ollamaConfig" class="api-config active">
+                    <div class="form-group">
+                        <div class="two-column">
+                            <div>
+                                <label for="ollamaModel">Model Name:</label>
+                                <select id="ollamaModel">
+                                    <option value="">Loading models...</option>
+                                </select>
+                                <div class="model-status" id="ollamaModelStatus">Click refresh to load available models</div>
+                            </div>
+                            <button class="refresh-btn" onclick="loadOllamaModels()">
+                                🔄 Refresh Models
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- OpenAI Configuration -->
+                <div id="openaiConfig" class="api-config">
+                    <div class="form-group">
+                        <label for="openaiModel">Model:</label>
+                        <select id="openaiModel">
+                            <option value="gpt-4o">GPT-4o</option>
+                            <option value="gpt-4o-mini">GPT-4o Mini</option>
+                            <option value="gpt-4-turbo">GPT-4 Turbo</option>
+                            <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+                        </select>
+                        <div class="model-status" id="openaiModelStatus">API key configured on server</div>
+                    </div>
+                </div>
+
+                <!-- DeepSeek Configuration -->
+                <div id="deepseekConfig" class="api-config">
+                    <div class="form-group">
+                        <label for="deepseekModel">Model:</label>
+                        <select id="deepseekModel">
+                            <option value="deepseek-chat">DeepSeek Chat</option>
+                            <option value="deepseek-coder">DeepSeek Coder</option>
+                        </select>
+                        <div class="model-status" id="deepseekModelStatus">API key configured on server</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="tab-container">
+                <button class="tab active" onclick="switchTab('text')">📝 Text Input</button>
+                <button class="tab" onclick="switchTab('url')">🌐 URL Link</button>
+                <button class="tab" onclick="switchTab('pdf')">📄 PDF Upload</button>
+            </div>
+            
+            <div id="textTab" class="tab-content active">
+                <div class="form-group">
+                    <label for="jobPosting">📋 Job Posting Content:</label>
+                    <textarea id="jobPosting" placeholder="Paste your job posting here...
+
+Example:
+Software Engineer - Full Stack
+Location: San Francisco, CA
+Salary: $120,000 - $150,000
+
+We are seeking a talented Full Stack Developer to join our growing team..."></textarea>
+                </div>
+            </div>
+            
+            <div id="urlTab" class="tab-content">
+                <div class="form-group">
+                    <label for="jobUrl">🌐 Job Posting URL:</label>
+                    <div class="url-input-container">
+                        <input type="url" id="jobUrl" placeholder="https://example.com/job-posting" style="padding-right: 80px;">
+                        <button class="url-validate-btn" onclick="validateAndPreviewUrl()">Preview</button>
+                    </div>
+                    <div class="url-preview" id="urlPreview"></div>
+                </div>
+            </div>
+            
+            <div id="pdfTab" class="tab-content">
+                <div class="form-group">
+                    <label>📄 Upload PDF Job Posting:</label>
+                    <div class="file-upload">
+                        <input type="file" id="pdfFile" class="file-input" accept=".pdf" onchange="handleFileSelect(event)">
+                        <label for="pdfFile" class="file-label" id="fileLabel">
+                            <div>📁 Click to select PDF file or drag & drop here</div>
+                            <div style="font-size: 14px; color: #6b7280; margin-top: 8px;">Supported format: PDF</div>
+                        </label>
+                    </div>
+                    <div class="file-info" id="fileInfo"></div>
+                </div>
+            </div>
+            
+            <button id="extractBtn" onclick="extractJobInfo()">
+                🔍 Extract Job Information
+            </button>
+            
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p id="loadingText">Analyzing job posting with AI...</p>
+            </div>
+            
+            <div class="error" id="error"></div>
+            
+            <div class="result" id="result">
+                <div class="result-header">
+                    <h3>📊 Extracted Information</h3>
+                    <button class="copy-btn" onclick="copyJsonToClipboard()">📋 Copy JSON</button>
+                </div>
+                <div class="json-output">
+                    <pre class="line-numbers"><code class="language-json" id="jsonOutput"></code></pre>
+                </div>
+                <div class="success-info" id="successInfo" style="display: none;"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Prism.js for syntax highlighting -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/line-numbers/prism-line-numbers.min.js"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

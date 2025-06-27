@@ -1,0 +1,8 @@
+Flask
+Flask-CORS
+requests
+openai
+PyPDF2
+beautifulsoup4
+lxml
+python-dotenv
