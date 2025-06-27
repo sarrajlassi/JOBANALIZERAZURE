@@ -18,7 +18,7 @@ echo "Date et heure de début : $(date)"
 # 1. Informations sur votre dépôt Git
 #    Remplacez par votre nom d'utilisateur GitHub / organisation et le nom de votre dépôt.
 #    Exemple : GITHUB_REPO="monutilisateur/job-analyzer-app"
-GITHUB_REPO="VOTRE_NOM_UTILISATEUR/VOTRE_NOM_DU_DEPOT" 
+GITHUB_REPO="sarrajlassi/JOBANALIZERAZURE" 
 BRANCH_NAME="main" # Ou "master", ou la branche que vous utilisez pour le déploiement.
 
 # 2. Chemin d'installation de l'application sur la VM
